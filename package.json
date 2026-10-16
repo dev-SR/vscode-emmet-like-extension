@@ -1,0 +1,110 @@
+{
+  "name": "wrap-selection-presets",
+  "displayName": "Wrap Selection Presets",
+  "description": "Wrap selection with markdown / Mark presets",
+  "version": "0.1.0",
+  "publisher": "local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Formatters",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:wrapSelection.wrap",
+    "onCommand:wrapSelection.wrapMark"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wrapSelection.wrap",
+        "title": "Wrap Selection…"
+      },
+      {
+        "command": "wrapSelection.wrapMark",
+        "title": "Wrap with Mark…"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "wrapSelection.wrap",
+        "key": "alt+m",
+        "when": "editorTextFocus && editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "wrapSelection.wrap",
+          "group": "1_modification",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Wrap Selection Presets",
+      "properties": {
+        "wrapSelection.presets": {
+          "type": "array",
+          "default": [],
+          "description": "Extra wrap presets. Each item: { label, description?, detail?, wrap } where wrap is \"before{text}after\" or { before, after }.",
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "wrap"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "wrap": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "before",
+                      "after"
+                    ],
+                    "properties": {
+                      "before": {
+                        "type": "string"
+                      },
+                      "after": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "pnpm exec vsce package --no-dependencies --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.4.0"
+  }
+}
