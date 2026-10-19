@@ -7,6 +7,13 @@ import {
   type UserPresetConfig,
   type WrapPreset,
 } from "./presets";
+import {
+  getSortMode,
+  loadUsage,
+  presetKey,
+  recordUsage,
+  sortByUsage,
+} from "./usage";
 import { requireSelections, wrapSelections, wrapSelectionsWith } from "./wrap";
 
 const CUSTOM_MARK_ID = "__custom_mark__";
@@ -16,6 +23,7 @@ type PickItem = vscode.QuickPickItem & {
   kind?: vscode.QuickPickItemKind;
   preset?: WrapPreset;
   special?: typeof CUSTOM_MARK_ID | typeof CUSTOM_FENCE_ID;
+  usageKey?: string;
 };
 
 function loadUserPresets(): WrapPreset[] {
@@ -36,7 +44,26 @@ function loadUserPresets(): WrapPreset[] {
   return out;
 }
 
-function buildPickItems(): PickItem[] {
+function wizardItems(): PickItem[] {
+  return [
+    {
+      label: "Custom Code Fence…",
+      description: "Ask for language, then wrap with ```lang",
+      detail: "Wizard",
+      special: CUSTOM_FENCE_ID,
+      usageKey: CUSTOM_FENCE_ID,
+    },
+    {
+      label: "Custom Mark…",
+      description: "Pick type, color, brackets",
+      detail: "Wizard",
+      special: CUSTOM_MARK_ID,
+      usageKey: CUSTOM_MARK_ID,
+    },
+  ];
+}
+
+function buildPresetItems(): PickItem[] {
   const items: PickItem[] = [];
 
   for (const preset of BUILTIN_PRESETS) {
@@ -45,6 +72,7 @@ function buildPickItems(): PickItem[] {
       description: preset.description,
       detail: preset.detail,
       preset,
+      usageKey: presetKey(preset.label, preset.detail),
     });
   }
 
@@ -54,43 +82,65 @@ function buildPickItems(): PickItem[] {
       description: preset.description,
       detail: preset.detail,
       preset,
+      usageKey: presetKey(preset.label, preset.detail),
     });
   }
-
-  items.push({
-    label: "Custom Code Fence…",
-    description: "Ask for language, then wrap with ```lang",
-    detail: "Wizard",
-    special: CUSTOM_FENCE_ID,
-  });
-
-  items.push({
-    label: "Custom Mark…",
-    description: "Pick type, color, brackets",
-    detail: "Wizard",
-    special: CUSTOM_MARK_ID,
-  });
 
   return items;
 }
 
-async function wrapSelectionCommand(): Promise<void> {
-  const ctx = await requireSelections();
-  if (!ctx) {
-    return;
+function separator(label: string): PickItem {
+  return {
+    label,
+    kind: vscode.QuickPickItemKind.Separator,
+  };
+}
+
+function buildPickItems(context: vscode.ExtensionContext): PickItem[] {
+  const presets = buildPresetItems();
+  const wizards = wizardItems();
+  const mode = getSortMode();
+
+  if (mode === "default") {
+    return [...presets, ...wizards];
   }
 
-  const picked = await vscode.window.showQuickPick(buildPickItems(), {
-    title: "Wrap Selection",
-    placeHolder: "Search presets (Bold, fence ts, circle warning…)",
-    matchOnDescription: true,
-    matchOnDetail: true,
-  });
+  const stats = loadUsage(context);
+  const keyed = presets
+    .filter((p): p is PickItem & { usageKey: string } => !!p.usageKey)
+    .map((p) => ({ ...p, key: p.usageKey }));
 
-  if (!picked) {
-    return;
+  const sorted = sortByUsage(keyed, stats);
+  const out: PickItem[] = [];
+  let lastSection: "recent" | "frequent" | "all" | undefined;
+  let hasPinned = false;
+
+  for (const { section, item } of sorted) {
+    if (section !== lastSection) {
+      if (section === "recent") {
+        out.push(separator("Recently used"));
+        hasPinned = true;
+      } else if (section === "frequent") {
+        out.push(separator("Frequently used"));
+        hasPinned = true;
+      } else if (section === "all" && hasPinned) {
+        out.push(separator("All presets"));
+      }
+      lastSection = section;
+    }
+    out.push(item);
   }
 
+  out.push(separator("Wizards"));
+  out.push(...wizards);
+  return out;
+}
+
+async function applyPicked(
+  context: vscode.ExtensionContext,
+  ctx: { editor: vscode.TextEditor; selections: vscode.Selection[] },
+  picked: PickItem
+): Promise<void> {
   if (picked.special === CUSTOM_FENCE_ID) {
     const lang = await promptFenceLang();
     if (lang === undefined) {
@@ -101,6 +151,9 @@ async function wrapSelectionCommand(): Promise<void> {
       ctx.selections,
       fenceTransform(lang.trim() === "" ? undefined : lang.trim())
     );
+    if (picked.usageKey) {
+      await recordUsage(context, picked.usageKey);
+    }
     return;
   }
 
@@ -110,11 +163,13 @@ async function wrapSelectionCommand(): Promise<void> {
       return;
     }
     await wrapSelections(ctx.editor, ctx.selections, wrap.before, wrap.after);
+    if (picked.usageKey) {
+      await recordUsage(context, picked.usageKey);
+    }
     return;
   }
 
   if (picked.preset) {
-    // Built-in fence presets use fixed ```; bump length when selection nests fences.
     if (picked.preset.detail === "Code fence") {
       const langMatch = /^Code fence · (.+)$/.exec(picked.preset.label);
       const langLabel = langMatch?.[1];
@@ -125,19 +180,45 @@ async function wrapSelectionCommand(): Promise<void> {
         ctx.selections,
         fenceTransform(lang)
       );
-      return;
+    } else {
+      await wrapSelections(
+        ctx.editor,
+        ctx.selections,
+        picked.preset.before,
+        picked.preset.after
+      );
     }
-
-    await wrapSelections(
-      ctx.editor,
-      ctx.selections,
-      picked.preset.before,
-      picked.preset.after
-    );
+    if (picked.usageKey) {
+      await recordUsage(context, picked.usageKey);
+    }
   }
 }
 
-async function wrapMarkCommand(): Promise<void> {
+async function wrapSelectionCommand(
+  context: vscode.ExtensionContext
+): Promise<void> {
+  const ctx = await requireSelections();
+  if (!ctx) {
+    return;
+  }
+
+  const picked = await vscode.window.showQuickPick(buildPickItems(context), {
+    title: "Wrap Selection",
+    placeHolder: "Search presets (Bold, fence ts, circle warning…)",
+    matchOnDescription: true,
+    matchOnDetail: true,
+  });
+
+  if (!picked || picked.kind === vscode.QuickPickItemKind.Separator) {
+    return;
+  }
+
+  await applyPicked(context, ctx, picked);
+}
+
+async function wrapMarkCommand(
+  context: vscode.ExtensionContext
+): Promise<void> {
   const ctx = await requireSelections();
   if (!ctx) {
     return;
@@ -149,15 +230,17 @@ async function wrapMarkCommand(): Promise<void> {
   }
 
   await wrapSelections(ctx.editor, ctx.selections, wrap.before, wrap.after);
+  // Record under a synthetic key so "Wrap with Mark…" usage can surface as Custom Mark.
+  await recordUsage(context, CUSTOM_MARK_ID);
 }
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("wrapSelection.wrap", () => {
-      void wrapSelectionCommand();
+      void wrapSelectionCommand(context);
     }),
     vscode.commands.registerCommand("wrapSelection.wrapMark", () => {
-      void wrapMarkCommand();
+      void wrapMarkCommand(context);
     })
   );
 }

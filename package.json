@@ -2,7 +2,7 @@
   "name": "wrap-selection-presets",
   "displayName": "Wrap Selection Presets",
   "description": "Wrap selection with markdown / Mark presets",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "local",
   "private": true,
   "engines": {
@@ -47,6 +47,15 @@
     "configuration": {
       "title": "Wrap Selection Presets",
       "properties": {
+        "wrapSelection.sortBy": {
+          "type": "string",
+          "enum": [
+            "recentThenFrequent",
+            "default"
+          ],
+          "default": "recentThenFrequent",
+          "description": "Quick Pick order: recently used then frequently used, or built-in default order."
+        },
         "wrapSelection.presets": {
           "type": "array",
           "default": [],

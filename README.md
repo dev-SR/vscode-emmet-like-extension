@@ -39,7 +39,7 @@ pnpm run compile
 pnpm run package
 ```
 
-This produces `wrap-selection-presets-0.1.0.vsix`. In Cursor:
+This produces `wrap-selection-presets-0.1.1.vsix` (version may bump). In Cursor:
 
 1. Command Palette (`Ctrl+Shift+P`)
 2. **Extensions: Install from VSIX…**
@@ -54,16 +54,39 @@ After `pnpm run compile`:
 2. Select this extension folder (the one containing `package.json` and `out/`)
 3. Reload if prompted
 
+### Reload the extension (after code changes)
+
+| How you run it | How to reload |
+| --- | --- |
+| **F5 Extension Development Host** | In the *dev host* window: `Ctrl+R` / `Cmd+R`, or Command Palette → **Developer: Reload Window**. Or stop debugging and press **F5** again. |
+| **Installed VSIX / from Location** | Re-run `pnpm run package` (or recompile), install the new VSIX again (overwrite), then Command Palette → **Developer: Reload Window**. |
+| Quick reload command | `Ctrl+Shift+P` → **Developer: Reload Window** |
+
+You do **not** need to uninstall first; installing the same extension id again updates it. After reload, `Alt+M` should show new presets.
+
 ## Usage
 
 1. Select text in the editor (especially Markdown / MDX).
 2. Press `Alt+M`, or run **Wrap Selection…** from the palette / context menu.
-3. Search and pick a preset (e.g. `Bold`, `Code fence · ts`, `Mark · circle · warning`).
+3. Search and pick a preset (e.g. `Bold`, `Bold + Underline`, `Mark+Bold · circle · warning`).
 4. The selection is replaced with the wrapped text (all multi-cursor selections are wrapped).
 
 **Wrap with Mark…** skips the full list and walks type → color → brackets (when type is `bracket`).
 
 If there is no selection, a warning is shown and nothing is changed.
+
+### Combo presets
+
+- **Combo** (markdown / HTML only — not the `<Mark>` component): e.g. `Bold + Underline` → `**<u>text</u>**`, `Bold + Italic`, strikethrough mixes, `<mark>` mixes.
+- **Mark+Bold / Mark+Italic / Mark+Underline**: nests markdown or `<u>` *inside* the `<Mark>` component, e.g. `<Mark type="circle" color="warning">**text**</Mark>`. Search `Mark+Bold` or `Mark+Italic`.
+
+The Quick Pick is ordered by **recently used**, then **frequently used**, then the full list (default). Disable with:
+
+```json
+{
+  "wrapSelection.sortBy": "default"
+}
+```
 
 ### Custom wizards
 
