@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Custom `<Mark>` presets are standalone — removed `Mark+Bold`, `Mark+Italic`, and `Mark+Underline`; only native `<mark>` composes with other native formats
+
 ## [0.1.2] — 2026-10-19
 
 - Markdown/HTML combo presets (Bold+Underline, Bold+Italic, strikethrough / `<mark>` mixes)

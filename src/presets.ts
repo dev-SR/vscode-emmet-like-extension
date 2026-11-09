@@ -132,13 +132,6 @@ function fencePreset(lang: string | undefined): WrapPreset {
   };
 }
 
-/** Inner formats nested inside `<Mark>` (markdown / HTML — not the Mark component). */
-const INNER_FORMATS: { id: string; label: string; before: string; after: string }[] = [
-  { id: "bold", label: "Bold", before: "**", after: "**" },
-  { id: "italic", label: "Italic", before: "*", after: "*" },
-  { id: "underline", label: "Underline", before: "<u>", after: "</u>" },
-];
-
 function buildMarkdownPresets(): WrapPreset[] {
   return [
     {
@@ -272,16 +265,6 @@ function buildFormatComboPresets(): WrapPreset[] {
   ];
 }
 
-function nestInner(
-  outer: { before: string; after: string },
-  inner: { before: string; after: string }
-): { before: string; after: string } {
-  return {
-    before: outer.before + inner.before,
-    after: inner.after + outer.after,
-  };
-}
-
 function buildFencePresets(): WrapPreset[] {
   return [
     fencePreset(undefined),
@@ -293,68 +276,42 @@ function pushMarkVariant(
   presets: WrapPreset[],
   typeLabel: string,
   detailGroup: string,
-  outer: { before: string; after: string },
-  inner?: { id: string; label: string; before: string; after: string }
+  outer: { before: string; after: string }
 ): void {
-  if (!inner) {
-    presets.push({
-      label: `Mark · ${typeLabel}`,
-      description: `${outer.before}…${outer.after}`,
-      detail: `Mark / ${detailGroup}`,
-      before: outer.before,
-      after: outer.after,
-    });
-    return;
-  }
-
-  const nested = nestInner(outer, inner);
   presets.push({
-    label: `Mark+${inner.label} · ${typeLabel}`,
-    description: `${nested.before}…${nested.after}`,
-    detail: `Mark+${inner.label} / ${detailGroup}`,
-    before: nested.before,
-    after: nested.after,
+    label: `Mark · ${typeLabel}`,
+    description: `${outer.before}…${outer.after}`,
+    detail: `Mark / ${detailGroup}`,
+    before: outer.before,
+    after: outer.after,
   });
 }
 
 function buildMarkPresets(): WrapPreset[] {
   const presets: WrapPreset[] = [];
   const nonBracket = MARK_TYPES.filter((t) => t !== "bracket");
-  const variants: (undefined | (typeof INNER_FORMATS)[number])[] = [
-    undefined,
-    ...INNER_FORMATS,
-  ];
 
-  for (const inner of variants) {
-    for (const type of nonBracket) {
-      for (const color of MARK_COLORS) {
-        pushMarkVariant(
-          presets,
-          `${type} · ${color}`,
-          type,
-          markWrap(type, color),
-          inner
-        );
-      }
+  for (const type of nonBracket) {
+    for (const color of MARK_COLORS) {
+      pushMarkVariant(presets, `${type} · ${color}`, type, markWrap(type, color));
     }
+  }
 
-    for (const side of MARK_BRACKETS) {
-      for (const color of MARK_COLORS) {
-        pushMarkVariant(
-          presets,
-          `bracket (${side}) · ${color}`,
-          "bracket",
-          markWrap("bracket", color, side),
-          inner
-        );
-      }
+  for (const side of MARK_BRACKETS) {
+    for (const color of MARK_COLORS) {
+      pushMarkVariant(
+        presets,
+        `bracket (${side}) · ${color}`,
+        "bracket",
+        markWrap("bracket", color, side)
+      );
     }
   }
 
   return presets;
 }
 
-/** Built-in presets: markdown → combos → fences → Mark (+ nested formats). */
+/** Built-in presets: markdown → combos → fences → Mark (standalone, no nesting). */
 export const BUILTIN_PRESETS: WrapPreset[] = [
   ...buildMarkdownPresets(),
   ...buildFormatComboPresets(),

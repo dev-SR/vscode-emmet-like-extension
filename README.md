@@ -64,6 +64,22 @@ After `pnpm run compile`:
 
 You do **not** need to uninstall first; installing the same extension id again updates it. After reload, `Alt+M` should show new presets.
 
+### How to reload the extension (after code changes)
+
+#### **If you installed the VSIX**
+
+```bash
+pnpm run package
+```
+Then **Extensions: Install from VSIX…** (same file/id updates it) → **Developer: Reload Window**.
+
+You don’t need to uninstall first.
+
+#### **If you use F5 (dev host)**  
+In the Extension Development Host window: `Ctrl+R`, or Command Palette → **Developer: Reload Window**. Or stop and press **F5** again (after `pnpm run compile`).
+
+
+
 ## Usage
 
 1. Select text in the editor (especially Markdown / MDX).
@@ -77,8 +93,8 @@ If there is no selection, a warning is shown and nothing is changed.
 
 ### Combo presets
 
-- **Combo** (markdown / HTML only — not the `<Mark>` component): e.g. `Bold + Underline` → `**<u>text</u>**`, `Bold + Italic`, strikethrough mixes, `<mark>` mixes.
-- **Mark+Bold / Mark+Italic / Mark+Underline**: nests markdown or `<u>` *inside* the `<Mark>` component, e.g. `<Mark type="circle" color="warning">**text**</Mark>`. Search `Mark+Bold` or `Mark+Italic`.
+- **Combo** (markdown / HTML only): e.g. `Bold + Underline` → `**<u>text</u>**`, `Bold + Italic`, strikethrough mixes, and native `<mark>` mixes (`**<mark>text</mark>**`, `<u><mark>text</mark></u>`).
+- **`<Mark>`** (the custom MDX component) is **standalone** — it is never composed with markdown or HTML. Presets only set `type` / `color` (and `brackets`), e.g. `<Mark type="circle" color="warning">text</Mark>`. Only the native `<mark>` element is combined with other native formats.
 
 The Quick Pick is ordered by **recently used**, then **frequently used**, then the full list (default). Disable with:
 
